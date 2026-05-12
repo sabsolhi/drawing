@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kanvas Ceria ICT - Pendidikan Khas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            touch-action: none; /* Mengelakkan skrol semasa melukis di tablet */
+            background-color: #f0fdf4;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        canvas {
+            cursor: crosshair;
+            touch-action: none;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        .color-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            transition: transform 0.2s;
+            border: 4px solid white;
+        }
+        .color-btn:active {
+            transform: scale(0.9);
+        }
+        .active-tool {
+            border: 4px solid #166534 !important;
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden">
+
+    <!-- Header -->
+    <header class="bg-green-600 text-white p-4 shadow-md flex justify-between items-center">
+        <h1 class="text-2xl font-bold flex items-center gap-2">
+            🎨 Kanvas Ceria Kelab ICT
+        </h1>
+        <div class="flex gap-2">
+            <button id="clearBtn" class="bg-red-500 hover:bg-red-600 px-4 py-2 rounded-lg font-bold transition">🗑️ Padam Semua</button>
+            <button id="saveBtn" class="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded-lg font-bold transition">💾 Simpan Lukisan</button>
+        </div>
+    </header>
+
+    <main class="flex-1 flex flex-col md:flex-row p-4 gap-4 overflow-hidden">
+        
+        <!-- Sidebar Alatan (Kiri) -->
+        <div class="bg-white p-4 rounded-2xl shadow-lg flex md:flex-col flex-wrap justify-center gap-4 w-full md:w-24">
+            <div class="flex flex-col items-center">
+                <span class="text-xs font-bold text-gray-500 mb-1">WARNA</span>
+                <div class="flex md:flex-col flex-wrap gap-2 justify-center" id="colorPalette">
+                    <button class="color-btn active-tool" style="background-color: #000000;" data-color="#000000"></button>
+                    <button class="color-btn" style="background-color: #ef4444;" data-color="#ef4444"></button>
+                    <button class="color-btn" style="background-color: #3b82f6;" data-color="#3b82f6"></button>
+                    <button class="color-btn" style="background-color: #22c55e;" data-color="#22c55e"></button>
+                    <button class="color-btn" style="background-color: #eab308;" data-color="#eab308"></button>
+                    <button class="color-btn" style="background-color: #a855f7;" data-color="#a855f7"></button>
+                    <button class="color-btn" style="background-color: #ec4899;" data-color="#ec4899"></button>
+                    <button class="color-btn flex items-center justify-center border-gray-300" style="background-color: #ffffff;" data-color="#ffffff">🧽</button>
+                </div>
+            </div>
+
+            <hr class="hidden md:block border-gray-200">
+
+            <div class="flex flex-col items-center">
+                <span class="text-xs font-bold text-gray-500 mb-1">SAIZ</span>
+                <div class="flex md:flex-col gap-3">
+                    <button class="size-btn w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center" data-size="5">
+                        <div class="bg-black rounded-full" style="width: 5px; height: 5px;"></div>
+                    </button>
+                    <button class="size-btn w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center border-2 border-green-500" data-size="15">
+                        <div class="bg-black rounded-full" style="width: 15px; height: 15px;"></div>
+                    </button>
+                    <button class="size-btn w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center" data-size="30">
+                        <div class="bg-black rounded-full" style="width: 25px; height: 25px;"></div>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Kawasan Melukis -->
+        <div class="flex-1 bg-white rounded-2xl relative overflow-hidden flex items-center justify-center border-4 border-dashed border-green-200">
+            <canvas id="paintCanvas" class="bg-white"></canvas>
+        </div>
+
+    </main>
+
+    <!-- Footer Pesanan Suara/Teks -->
+    <footer class="bg-green-100 p-2 text-center text-green-800 text-sm font-medium">
+        Jom melukis! Pilih warna kegemaran anda dan gerakkan tetikus atau jari.
+    </footer>
+
+    <script>
+        const canvas = document.getElementById('paintCanvas');
+        const ctx = canvas.getContext('2d');
+        const colorBtns = document.querySelectorAll('.color-btn');
+        const sizeBtns = document.querySelectorAll('.size-btn');
+        const clearBtn = document.getElementById('clearBtn');
+        const saveBtn = document.getElementById('saveBtn');
+
+        let painting = false;
+        let currentColor = '#000000';
+        let currentSize = 15;
+
+        // Menyelaraskan saiz kanvas dengan bekasnya
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            canvas.width = container.clientWidth - 20;
+            canvas.height = container.clientHeight - 20;
+            
+            // Set latar belakang putih secara default untuk simpanan imej yang cantik
+            ctx.fillStyle = "white";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+        }
+
+        window.addEventListener('load', resizeCanvas);
+        window.addEventListener('resize', resizeCanvas);
+
+        // Fungsi Mula Melukis
+        function startPosition(e) {
+            painting = true;
+            draw(e);
+        }
+
+        // Fungsi Tamat Melukis
+        function finishedPosition() {
+            painting = false;
+            ctx.beginPath();
+        }
+
+        // Fungsi Melukis
+        function draw(e) {
+            if (!painting) return;
+
+            // Mendapatkan posisi tetikus atau sentuhan
+            let clientX, clientY;
+            if (e.touches) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+
+            const rect = canvas.getBoundingClientRect();
+            const x = clientX - rect.left;
+            const y = clientY - rect.top;
+
+            ctx.lineWidth = currentSize;
+            ctx.strokeStyle = currentColor;
+
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        }
+
+        // Event Listeners untuk Tetikus
+        canvas.addEventListener('mousedown', startPosition);
+        canvas.addEventListener('mouseup', finishedPosition);
+        canvas.addEventListener('mousemove', draw);
+
+        // Event Listeners untuk Sentuhan (Tablet/Telefon)
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            startPosition(e);
+        });
+        canvas.addEventListener('touchend', finishedPosition);
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            draw(e);
+        });
+
+        // Pilihan Warna
+        colorBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                colorBtns.forEach(b => b.classList.remove('active-tool'));
+                btn.classList.add('active-tool');
+                currentColor = btn.getAttribute('data-color');
+            });
+        });
+
+        // Pilihan Saiz
+        sizeBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                sizeBtns.forEach(b => b.classList.remove('border-green-500'));
+                btn.classList.add('border-green-500');
+                currentSize = parseInt(btn.getAttribute('data-size'));
+            });
+        });
+
+        // Padam Semua
+        clearBtn.addEventListener('click', () => {
+            if(confirm('Adakah anda mahu memadam semua lukisan ini?')) {
+                ctx.fillStyle = "white";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+        });
+
+        // Simpan Lukisan
+        saveBtn.addEventListener('click', () => {
+            const link = document.createElement('a');
+            link.download = `lukisan-saya-${new Date().getTime()}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+        });
+    </script>
+</body>
+</html>
